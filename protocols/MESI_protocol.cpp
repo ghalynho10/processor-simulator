@@ -28,7 +28,9 @@ void MESI_protocol::process_cache_request(Mreq *request)
 {
     switch (state)
     {
-
+    case MESI_CACHE_S:
+        do_cache_S(request);
+        break;
     default:
         fatal_error("Invalid Cache State for MESI Protocol\n");
     }
