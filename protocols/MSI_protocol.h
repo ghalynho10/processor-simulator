@@ -38,9 +38,6 @@ public:
     inline void do_cache_I(Mreq *request);
     inline void do_cache_S(Mreq *request);
     inline void do_cache_M(Mreq *request);
-    inline void do_cache_SM(Mreq *request);
-    inline void do_cache_IM(Mreq *request);
-    inline void do_cache_IS(Mreq *request);
 
     /* Functions that specify the actions to take on snooped requests
      * when the cache is in various states

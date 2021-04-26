@@ -21,7 +21,7 @@ MSI_protocol::~MSI_protocol()
 
 void MSI_protocol::dump(void)
 {
-    const char *block_states[4] = {"X", "I", "S", "M"};
+    const char *block_states[7] = {"X", "I", "S", "M", "SM", "IM", "IS"};
     fprintf(stderr, "MSI_protocol - state: %s\n", block_states[state]);
 }
 
@@ -33,10 +33,8 @@ void MSI_protocol::process_cache_request(Mreq *request)
         do_cache_I(request);
         break;
     case MSI_CACHE_IM:
-        do_cache_IM(request);
         break;
     case MSI_CACHE_IS:
-        do_cache_IS(request);
         break;
     case MSI_CACHE_M:
         do_cache_M(request);
@@ -45,7 +43,6 @@ void MSI_protocol::process_cache_request(Mreq *request)
         do_cache_S(request);
         break;
     case MSI_CACHE_SM:
-        do_cache_SM(request);
         break;
 
     default:
@@ -88,34 +85,18 @@ inline void MSI_protocol::do_cache_I(Mreq *request)
     case LOAD:
         send_GETS(request->addr);
         state = MSI_CACHE_IS;
-        // Sim->cache_misses++;
-
+        Sim->cache_misses++;
         break;
+
     case STORE:
         send_GETM(request->addr);
         state = MSI_CACHE_IM;
         Sim->cache_misses++;
-
         break;
+
     default:
         request->print_msg(my_table->moduleID, "ERROR");
         fatal_error("'DO CACHE_I' Client: I state shouldn't see this message\n");
-    }
-}
-
-inline void MSI_protocol::do_cache_IS(Mreq *request)
-{
-    switch (request->msg)
-    {
-    case LOAD:
-        request->print_msg(my_table->moduleID, "ERROR");
-        fatal_error("Should only have one outstanding request per processor!");
-        break;
-    case STORE:
-        break;
-    default:
-        request->print_msg(my_table->moduleID, "ERROR");
-        fatal_error("'DO CACHE_IS' Client: I state shouldn't see this message\n");
     }
 }
 
@@ -129,41 +110,12 @@ inline void MSI_protocol::do_cache_S(Mreq *request)
     case STORE:
         send_GETM(request->addr);
         state = MSI_CACHE_SM;
-        Sim->cache_accesses++;
+        Sim->cache_misses++;
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
         cout << "MESSAGE!!!!!:  " << request->msg << endl;
         fatal_error("'DO CACHE_S' Client: S state shouldn't see this message\n");
-    }
-}
-inline void MSI_protocol::do_cache_IM(Mreq *request)
-{
-    switch (request->msg)
-    {
-    case LOAD:
-    case STORE:
-        request->print_msg(my_table->moduleID, "ERROR");
-        fatal_error("Should only have one outstanding request per processor!");
-        break;
-    default:
-        request->print_msg(my_table->moduleID, "ERROR");
-        fatal_error("'DO CACHE_IM' Client: I state shouldn't see this message\n");
-    }
-}
-
-inline void MSI_protocol::do_cache_SM(Mreq *request)
-{
-    switch (request->msg)
-    {
-    case LOAD:
-    case STORE:
-        request->print_msg(my_table->moduleID, "ERROR");
-        fatal_error("Should only have one outstanding request per processor!");
-        break;
-    default:
-        request->print_msg(my_table->moduleID, "ERROR");
-        fatal_error("'DO CACHE_SM' Client: S state shouldn't see this message\n");
     }
 }
 
@@ -172,8 +124,7 @@ inline void MSI_protocol::do_cache_M(Mreq *request)
     switch (request->msg)
     {
     case LOAD:
-        send_GETS(request->addr);
-        // Sim->cache_accesses++;
+        send_DATA_to_proc(request->addr);
         break;
     case STORE:
         send_DATA_to_proc(request->addr);
@@ -203,15 +154,10 @@ inline void MSI_protocol::do_snoop_S(Mreq *request)
     switch (request->msg)
     {
     case GETS:
-        // set_shared_line();
-
-        // send_DATA_on_bus(request->addr, request->src_mid);
-        break;
     case GETM:
         state = MSI_CACHE_I;
         break;
     case DATA:
-        state = MSI_CACHE_I;
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
@@ -225,17 +171,10 @@ inline void MSI_protocol::do_snoop_SM(Mreq *request)
     {
     case GETS:
     case GETM:
-
+        break;
     case DATA:
         send_DATA_to_proc(request->addr);
-        if (get_shared_line())
-        {
-            state = MSI_CACHE_M;
-        }
-        else
-        {
-            state = MSI_CACHE_S;
-        }
+        state = MSI_CACHE_M;
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
@@ -248,17 +187,10 @@ inline void MSI_protocol::do_snoop_IM(Mreq *request)
     {
     case GETS:
     case GETM:
-
+        break;
     case DATA:
         send_DATA_to_proc(request->addr);
-        if (get_shared_line())
-        {
-            state = MSI_CACHE_M;
-        }
-        else
-        {
-            state = MSI_CACHE_I;
-        }
+        state = MSI_CACHE_M;
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
@@ -272,17 +204,10 @@ inline void MSI_protocol::do_snoop_IS(Mreq *request)
     {
     case GETS:
     case GETM:
-
+        break;
     case DATA:
         send_DATA_to_proc(request->addr);
-        if (get_shared_line())
-        {
-            state = MSI_CACHE_S;
-        }
-        else
-        {
-            state = MSI_CACHE_I;
-        }
+        state = MSI_CACHE_S;
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
@@ -295,7 +220,8 @@ inline void MSI_protocol::do_snoop_M(Mreq *request)
     switch (request->msg)
     {
     case GETS:
-        // send_DATA_on_bus(request->addr, request->src_mid);
+        set_shared_line();
+        send_DATA_on_bus(request->addr, request->src_mid);
         state = MSI_CACHE_S;
         break;
     case GETM:
