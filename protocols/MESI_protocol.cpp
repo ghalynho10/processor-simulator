@@ -20,7 +20,7 @@ MESI_protocol::~MESI_protocol()
 
 void MESI_protocol::dump(void)
 {
-    const char *block_states[8] = {"X", "I", "S", "E", "M", "SM", "IM", "IS"};
+    const char *block_states[9] = {"X", "I", "S", "E", "M", "IS", "IM", "SM"};
     fprintf(stderr, "MESI_protocol - state: %s\n", block_states[state]);
 }
 
@@ -132,6 +132,7 @@ inline void MESI_protocol::do_cache_E(Mreq *request)
     case STORE:
         send_DATA_to_proc(request->addr);
         state = MESI_CACHE_M;
+        Sim->silent_upgrades++;
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
@@ -216,7 +217,6 @@ inline void MESI_protocol::do_snoop_S(Mreq *request)
     {
     case GETS:
         set_shared_line();
-        // send_DATA_on_bus(request->addr, request->src_mid);
         break;
     case GETM:
         state = MESI_CACHE_I;
@@ -234,6 +234,7 @@ inline void MESI_protocol::do_snoop_SM(Mreq *request)
     switch (request->msg)
     {
     case GETS:
+        set_shared_line();
     case GETM:
         break;
     case DATA:
@@ -251,16 +252,15 @@ inline void MESI_protocol::do_snoop_E(Mreq *request)
     switch (request->msg)
     {
     case GETS:
+        set_shared_line();
         send_DATA_on_bus(request->addr, request->src_mid);
         state = MESI_CACHE_S;
         break;
     case GETM:
         send_DATA_on_bus(request->addr, request->src_mid);
         state = MESI_CACHE_I;
-        Sim->silent_upgrades++;
         break;
     case DATA:
-        // send_DATA_on_bus(request->addr, request->src_mid);
         break;
     default:
         request->print_msg(my_table->moduleID, "ERROR");
