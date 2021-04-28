@@ -274,17 +274,12 @@ inline void MOSI_protocol::do_snoop_OM(Mreq *request)
     switch (request->msg)
     {
     case GETS:
-        // set_shared_line();
-        if (!get_shared_line())
-        {
-            send_DATA_on_bus(request->addr, request->src_mid);
-        }
+        set_shared_line();
+        send_DATA_on_bus(request->addr, request->src_mid);
         break;
     case GETM:
-        if (!get_shared_line())
-        {
-            send_DATA_on_bus(request->addr, request->src_mid);
-        }
+        send_DATA_on_bus(request->addr, request->src_mid);
+        state = MOSI_CACHE_IM;
         break;
     case DATA:
         send_DATA_to_proc(request->addr);

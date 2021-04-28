@@ -154,6 +154,8 @@ inline void MSI_protocol::do_snoop_S(Mreq *request)
     switch (request->msg)
     {
     case GETS:
+        set_shared_line();
+        break;
     case GETM:
         state = MSI_CACHE_I;
         break;
